@@ -1,37 +1,34 @@
-import os  # এই লাইনটি যোগ করুন
-from telegram.ext import Application, CommandHandler
+from telegram import Update
+from telegram.ext import Application, CommandHandler, ContextTypes
+from flask import Flask, request, jsonify  # Flask যোগ করুন
 
-async def start(update, context):
+app = Flask(__name__)
+
+# টেলিগ্রাম বট সেটআপ
+bot_app = Application.builder().token(os.getenv('TELEGRAM_BOT_TOKEN')).build()
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text('বট কাজ করছে! ✅')
 
-def main():
-    # টোকেন চেক করুন
-    bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
-    if not bot_token:
-        print("Error: TELEGRAM_BOT_TOKEN environment variable is not set!")
-        exit(1)
+# Flask এন্ডপয়েন্ট
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    if request.headers.get('X-Telegram-Bot-Api-Secret-Token') != os.getenv('WEBHOOK_SECRET'):
+        return jsonify({"status": "forbidden"}), 403
+    
+    update = Update.de_json(request.get_json(), bot_app.bot)
+    bot_app.process_update(update)
+    return jsonify({"status": "ok"}), 200
 
-    app = Application.builder().token(bot_token).build()
+def main():
+    bot_app.add_handler(CommandHandler("start", start))
     
-    # হ্যান্ডলার রেজিস্টার করুন
-    app.add_handler(CommandHandler("start", start))
-    
-    # ওয়েবহুক কনফিগারেশন
     if os.getenv('RENDER'):
-        PORT = int(os.getenv('PORT', 10000))
-        webhook_url = f'https://{os.getenv("RENDER_EXTERNAL_HOSTNAME")}/webhook'
-        secret_token = os.getenv('WEBHOOK_SECRET')
-        
-        print(f"Starting webhook on port {PORT} with URL: {webhook_url}")
-        app.run_webhook(
-            listen="0.0.0.0",
-            port=PORT,
-            webhook_url=webhook_url,
-            secret_token=secret_token
-        )
+        # Render-এ Flask রান করবে
+        app.run(host='0.0.0.0', port=int(os.getenv('PORT', 10000)))
     else:
-        print("Starting in polling mode...")
-        app.run_polling()
+        # লোকাল ডেভেলপমেন্টে পোলিং মোড
+        bot_app.run_polling()
 
 if __name__ == "__main__":
     main()
