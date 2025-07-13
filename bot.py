@@ -1,6 +1,8 @@
 import os
 import re
 import logging
+import secrets
+import string
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
@@ -11,23 +13,23 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def validate_secret_token(token: str) -> bool:
-    """Validate the webhook secret token format"""
-    return bool(re.match(r'^[A-Za-z0-9_-]{1,256}$', token))
+def generate_valid_secret():
+    """Generate a valid Telegram webhook secret"""
+    alphabet = string.ascii_letters + string.digits + '_-'
+    return ''.join(secrets.choice(alphabet) for _ in range(32))
 
 # Get environment variables
 BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 RENDER_EXTERNAL_HOSTNAME = os.getenv('RENDER_EXTERNAL_HOSTNAME')
-WEBHOOK_SECRET = os.getenv('WEBHOOK_SECRET', 'default-secret-token')
+WEBHOOK_SECRET = os.getenv('WEBHOOK_SECRET', generate_valid_secret())
 PORT = int(os.getenv('PORT', 10000))
 
-# Validate secret token
-if not validate_secret_token(WEBHOOK_SECRET):
-    logger.error("Invalid WEBHOOK_SECRET format. Must contain only A-Z, a-z, 0-9, _, - and be 1-256 chars long")
-    exit(1)
+# Ensure secret is valid
+WEBHOOK_SECRET = re.sub(r'[^A-Za-z0-9_-]', '', WEBHOOK_SECRET)[:256] or generate_valid_secret()
+logger.info(f"Using webhook secret: {WEBHOOK_SECRET}")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('✅ Bot is working!')
+    await update.message.reply_text('✅ Bot is working perfectly!')
 
 def main():
     try:
