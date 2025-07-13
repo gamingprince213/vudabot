@@ -10,6 +10,6 @@ services:
       - key: TELEGRAM_BOT_TOKEN
         value: your_bot_token_here
       - key: WEBHOOK_SECRET
-        value: your_secure_secret_here
+        value: change-this-to-a-valid-secret-123
       - key: PYTHON_VERSION
         value: 3.9.7
